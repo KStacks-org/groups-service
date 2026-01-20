@@ -1,10 +1,12 @@
 package com.kaustack.groups.security;
 
-import jakarta.servlet.*;
-import jakarta.servlet.http.HttpServletResponse;
+import com.kaustack.groups.exception.UnauthorizedException;
+
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+
+import jakarta.servlet.*;
 
 import java.io.IOException;
 
@@ -16,13 +18,9 @@ public class JwtRequiredFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         
-        HttpServletResponse res = (HttpServletResponse) response;
         
         if (JwtContextHolder.getToken() == null) {
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            res.setContentType("application/json");
-            res.getWriter().write("{\"error\":\"Missing or invalid authentication token\"}");
-            return;
+            throw new UnauthorizedException("Unauthorized");
         }
         
         chain.doFilter(request, response);
