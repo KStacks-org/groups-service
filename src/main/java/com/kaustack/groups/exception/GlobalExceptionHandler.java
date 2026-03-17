@@ -20,6 +20,24 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Resource not found: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.of(
+                HttpStatus.NOT_FOUND.value(),
+                "Not Found",
+                "RESOURCE_NOT_FOUND",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(
             UnauthorizedException ex,
@@ -36,6 +54,24 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRuleViolation(
+            BusinessRuleViolationException ex,
+            HttpServletRequest request) {
+        
+        log.warn("Business rule violation: {}", ex.getMessage());
+        
+        ErrorResponse response = ErrorResponse.of(
+            HttpStatus.CONFLICT.value(),
+            "Conflict",
+            "BUSINESS_RULE_VIOLATION",
+            ex.getMessage(),
+            request.getRequestURI()
+        );
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
