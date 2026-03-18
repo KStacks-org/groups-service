@@ -1,7 +1,7 @@
 package com.kaustack.groups.controller;
 
-import com.kaustack.groups.dto.request.AddGroupRequest;
-import com.kaustack.groups.dto.response.AddGroupResponse;
+import com.kaustack.groups.dto.request.*;
+import com.kaustack.groups.dto.response.*;
 import com.kaustack.groups.model.Group;
 import com.kaustack.groups.service.GroupService;
 
@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 
 import jakarta.validation.Valid;
+
+import java.util.List;
 
 
 @RestController
@@ -26,5 +28,14 @@ public class GroupController {
        Group group = groupService.addGroup(addGroupRequest);
        AddGroupResponse response = AddGroupResponse.from(group);
        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/")
+    public ResponseEntity<GetGroupsResponse> getGroups(
+            @Valid @RequestBody GetGroupsRequest request
+    ) {
+        List<Group> groups = groupService.getGroups(request);
+        GetGroupsResponse response = GetGroupsResponse.from(groups);
+        return ResponseEntity.ok(response);
     }
 }

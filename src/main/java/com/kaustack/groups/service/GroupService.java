@@ -16,6 +16,8 @@ import org.springframework.web.client.RestTemplate;
 
 import lombok.RequiredArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -63,6 +65,22 @@ public class GroupService {
         return groupRepository.save(group);
     }
 
+    public List<Group> getGroups(GetGroupsRequest request) {
+
+        // It will return 404 if the course not found
+        fetchCourse(request.getCourseId());
+
+        List<Group> groups = groupRepository.findByCourseIdAndGenderOrGeneralForBoth(
+                request.getCourseId(),
+                Gender.valueOf(jwt().extractGender())
+        );
+
+        if (groups.isEmpty()) {
+            throw new ResourceNotFoundException("No groups found");
+        }
+        return groups;
+    }
+
     private CourseData fetchCourse(UUID courseId) {
         try {
             CatalogCourseResponse response = restTemplate.getForObject(
@@ -76,7 +94,7 @@ public class GroupService {
     }
 
     private void checkDuplicateGroup(UUID courseId, String section, Gender gender, Boolean generalGroup,
-            Boolean generalGroupMaleAndFemale, UUID excludeId) {
+                                     Boolean generalGroupMaleAndFemale, UUID excludeId) {
         if (generalGroupMaleAndFemale) {
             if (groupRepository.existsDuplicateGeneralForBoth(courseId, excludeId)) {
                 throw new BusinessRuleViolationException(
