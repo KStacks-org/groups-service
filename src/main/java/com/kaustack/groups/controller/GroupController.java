@@ -22,7 +22,7 @@ import java.util.UUID;
 public class GroupController {
     private final GroupService groupService;
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<AddGroupResponse> addGroup(
             @Valid @RequestBody AddGroupRequest addGroupRequest
     ){
@@ -31,7 +31,7 @@ public class GroupController {
        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<GetGroupsResponse> getGroups(
             @RequestParam UUID courseId
     ) {
