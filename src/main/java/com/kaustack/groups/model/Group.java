@@ -3,7 +3,10 @@ package com.kaustack.groups.model;
 import jakarta.persistence.*;
 
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -18,13 +21,12 @@ public class Group {
     @Column(nullable = false, updatable = false, unique = true)
     private UUID id;
 
-    @Column(nullable = false, updatable = false, unique = true)
+    @Column(nullable = false, updatable = false)
     private UUID courseId;
 
-    @Column(nullable = false, updatable = false, unique = true)
+    @Column(nullable = false, updatable = false)
     private UUID userId;
 
-    @Column(nullable = false)
     @Setter
     private String section;
 
@@ -41,5 +43,13 @@ public class Group {
 
     @Column(nullable = false, updatable = false)
     private Boolean generalGroupMaleAndFemale;
+
+    @CreationTimestamp
+    @Column(nullable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private Instant updatedAt;
 
 }
