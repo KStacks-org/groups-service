@@ -15,11 +15,12 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GroupService {
@@ -89,6 +90,7 @@ public class GroupService {
                     courseId);
             return response.getData();
         } catch (HttpClientErrorException.NotFound e) {
+            log.error("Fetch Course error: ", e);
             throw new ResourceNotFoundException("Course not found: " + courseId);
         }
     }
