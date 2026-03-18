@@ -66,5 +66,12 @@ public class AddGroupRequest {
                 "Cannot have both generalGroup and generalGroupMaleAndFemale set to true"
             );
         }
+        
+        // If generalGroup or generalGroupMaleAndFemale is true, section should be null
+        if ((generalGroup || generalGroupMaleAndFemale) && section != null) {
+            throw new BusinessRuleViolationException(
+                "Section is not allowed when the group is general"
+            );
+        }
     }
 }

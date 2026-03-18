@@ -11,10 +11,12 @@ public record GetGroupsResponse(
     public record GroupItem(
             UUID id,
             String section,
-            String link
+            String link,
+            Boolean generalGroup,
+            Boolean generalGroupMaleAndFemale
     ) {
         public static GroupItem from(Group group) {
-            return new GroupItem(group.getId(), group.getSection(), group.getLink());
+            return new GroupItem(group.getId(), group.getSection(), group.getLink(), group.getGeneralGroup(), group.getGeneralGroupMaleAndFemale());
         }
     }
 
