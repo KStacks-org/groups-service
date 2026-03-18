@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  groups-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GITHUB_USERNAME: ${GITHUB_USERNAME}
+        GITHUB_TOKEN: ${GITHUB_TOKEN}
+    container_name: groups-service
+    environment:
+      # Spring profiles
+      SPRING_PROFILES_ACTIVE: prod
+
+      # Database configuration (configure to connect to your external database)
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5432/groups_db}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-validate}
+
+      # Eureka
+      EUREKA_DEFAULTZONE: ${EUREKA_DEFAULTZONE:-http://localhost:8761/eureka}
+
+      # Services url
+      CATALOG_URL: ${CATALOG_URL:-http://catalog-service}
+
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
