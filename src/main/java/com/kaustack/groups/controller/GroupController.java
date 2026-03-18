@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.UUID;
 
 
 @RestController
@@ -32,9 +33,9 @@ public class GroupController {
 
     @GetMapping("/")
     public ResponseEntity<GetGroupsResponse> getGroups(
-            @Valid @RequestBody GetGroupsRequest request
+            @RequestParam UUID courseId
     ) {
-        List<Group> groups = groupService.getGroups(request);
+        List<Group> groups = groupService.getGroups(courseId);
         GetGroupsResponse response = GetGroupsResponse.from(groups);
         return ResponseEntity.ok(response);
     }

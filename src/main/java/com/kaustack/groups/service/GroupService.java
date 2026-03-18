@@ -66,13 +66,13 @@ public class GroupService {
         return groupRepository.save(group);
     }
 
-    public List<Group> getGroups(GetGroupsRequest request) {
+    public List<Group> getGroups(UUID courseId) {
 
         // It will return 404 if the course not found
-        fetchCourse(request.getCourseId());
+        fetchCourse(courseId);
 
         List<Group> groups = groupRepository.findByCourseIdAndGenderOrGeneralForBoth(
-                request.getCourseId(),
+                courseId,
                 Gender.valueOf(jwt().extractGender())
         );
 
