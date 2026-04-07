@@ -1,8 +1,5 @@
 package com.kaustack.groups.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.kaustack.groups.dto.response.ErrorResponse;
 
 import org.springframework.core.Ordered;
@@ -11,19 +8,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
+
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import tools.jackson.databind.ObjectMapper;
+
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 @Order(Ordered.HIGHEST_PRECEDENCE + 101) // Run after JwtExtractionFilter
 public class JwtRequiredFilter implements Filter {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    private final ObjectMapper objectMapper;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
