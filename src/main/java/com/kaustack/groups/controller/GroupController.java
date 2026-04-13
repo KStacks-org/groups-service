@@ -45,4 +45,13 @@ public class GroupController {
         groupService.deleteGroup(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Void> updateGroup(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateGroupRequest request
+    ) {
+        groupService.updateGroup(id, request);
+        return ResponseEntity.noContent().build();
+    }
 }

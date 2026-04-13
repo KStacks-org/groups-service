@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,8 +74,7 @@ public class GroupService {
 
         List<Group> groups = groupRepository.findByCourseIdAndGenderOrGeneralForBoth(
                 courseId,
-                Gender.valueOf(jwt().extractGender())
-        );
+                Gender.valueOf(jwt().extractGender()));
 
         if (groups.isEmpty()) {
             throw new ResourceNotFoundException("No groups found");
@@ -93,6 +93,76 @@ public class GroupService {
         groupRepository.delete(group);
     }
 
+    @Transactional
+    public Group updateGroup(UUID id, UpdateGroupRequest request) {
+        Group group = groupRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found: " + id));
+
+        JwtUtils jwtUtils = jwt();
+
+        if (!group.getUserId().equals(jwtUtils.extractUserId())) {
+            throw new UnauthorizedException(
+                    "You are not authorized to update this group. Only the group creator can update it.");
+        }
+
+        if (!request.hasUpdates()) {
+            throw new BusinessRuleViolationException("No fields to update");
+        }
+
+        Boolean effectiveGeneralGroupMaleAndFemale = request.getGeneralGroupMaleAndFemale() != null
+                ? request.getGeneralGroupMaleAndFemale()
+                : group.getGeneralGroupMaleAndFemale();
+        Boolean effectiveGeneralGroup = request.getGeneralGroup() != null
+                ? request.getGeneralGroup()
+                : group.getGeneralGroup();
+        Gender effectiveGender = effectiveGeneralGroupMaleAndFemale
+                ? Gender.UNKNOWN
+                : Gender.valueOf(jwtUtils.extractGender().toUpperCase());
+        String effectiveSection = (effectiveGeneralGroup || effectiveGeneralGroupMaleAndFemale)
+                ? null
+                : (request.getSection() != null ? request.getSection() : group.getSection());
+
+        if (effectiveGeneralGroup && effectiveGeneralGroupMaleAndFemale) {
+            throw new BusinessRuleViolationException(
+                    "Cannot have both generalGroup and generalGroupMaleAndFemale set to true");
+        }
+
+        if (!effectiveGeneralGroup && !effectiveGeneralGroupMaleAndFemale
+                && (effectiveSection == null || effectiveSection.isBlank())) {
+            throw new BusinessRuleViolationException(
+                    "Section is required when the group is not general");
+        }
+
+        boolean linkChanged = request.getLink() != null && !request.getLink().equals(group.getLink());
+        boolean attributesChanged = !effectiveGeneralGroup.equals(group.getGeneralGroup()) ||
+                !effectiveGeneralGroupMaleAndFemale.equals(group.getGeneralGroupMaleAndFemale()) ||
+                effectiveGender != group.getGender() ||
+                (effectiveSection != null ? !effectiveSection.equals(group.getSection()) : group.getSection() != null);
+
+        if (!linkChanged && !attributesChanged) {
+            return group;
+        }
+
+        if (linkChanged) {
+            if (groupRepository.existsByLink(request.getLink())) {
+                throw new BusinessRuleViolationException("A group with this link already exists");
+            }
+            group.setLink(request.getLink());
+        }
+
+        if (attributesChanged) {
+            checkDuplicateGroup(group.getCourseId(), effectiveSection, effectiveGender,
+                    effectiveGeneralGroup, effectiveGeneralGroupMaleAndFemale, group.getId());
+
+            group.setGeneralGroupMaleAndFemale(effectiveGeneralGroupMaleAndFemale);
+            group.setGeneralGroup(effectiveGeneralGroup);
+            group.setGender(effectiveGender);
+            group.setSection(effectiveSection);
+        }
+
+        return groupRepository.save(group);
+    }
+
     private CourseData fetchCourse(UUID courseId) {
         try {
             CatalogCourseResponse response = restTemplate.getForObject(
@@ -107,7 +177,7 @@ public class GroupService {
     }
 
     private void checkDuplicateGroup(UUID courseId, String section, Gender gender, Boolean generalGroup,
-                                     Boolean generalGroupMaleAndFemale, UUID excludeId) {
+            Boolean generalGroupMaleAndFemale, UUID excludeId) {
         if (generalGroupMaleAndFemale) {
             if (groupRepository.existsDuplicateGeneralForBoth(courseId, excludeId)) {
                 throw new BusinessRuleViolationException(

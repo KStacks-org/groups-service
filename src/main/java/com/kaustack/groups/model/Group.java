@@ -35,13 +35,16 @@ public class Group {
     private String link;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false)
+    @Setter
     private Gender gender;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false)
+    @Setter
     private Boolean generalGroup;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false)
+    @Setter
     private Boolean generalGroupMaleAndFemale;
 
     @CreationTimestamp
