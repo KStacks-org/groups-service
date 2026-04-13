@@ -39,4 +39,10 @@ public class GroupController {
         GetGroupsResponse response = GetGroupsResponse.from(groups);
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteGroup(@PathVariable UUID id) {
+        groupService.deleteGroup(id);
+        return ResponseEntity.noContent().build();
+    }
 }

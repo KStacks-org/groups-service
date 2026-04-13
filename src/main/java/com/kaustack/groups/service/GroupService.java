@@ -82,6 +82,17 @@ public class GroupService {
         return groups;
     }
 
+    public void deleteGroup(UUID groupId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found: " + groupId));
+
+        if (!group.getUserId().equals(jwt().extractUserId())) {
+            throw new UnauthorizedException("You are not allowed to delete this group");
+        }
+
+        groupRepository.delete(group);
+    }
+
     private CourseData fetchCourse(UUID courseId) {
         try {
             CatalogCourseResponse response = restTemplate.getForObject(
