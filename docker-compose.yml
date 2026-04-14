@@ -28,5 +28,5 @@ services:
       CATALOG_URL: ${CATALOG_URL:-http://catalog-service}
 
     ports:
-      - "8080:8080"
+      - "6598:6598"
     restart: unless-stopped

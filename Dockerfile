@@ -59,7 +59,7 @@ RUN chown -R appuser:appgroup /app
 USER appuser
 
 # Expose application port
-EXPOSE 8080
+EXPOSE 6598
 
 # Set dev profile by default (can be overridden)
 ENV SPRING_PROFILES_ACTIVE=dev
