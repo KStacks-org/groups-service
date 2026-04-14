@@ -14,10 +14,12 @@ services:
       SPRING_PROFILES_ACTIVE: prod
 
       # Database configuration (configure to connect to your external database)
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5432/groups_db}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-postgres}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-validate}
+      DB_HOST: ${DB_HOST:-localhost}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-groups_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-postgres}
+      DB_DDL_AUTO: ${DB_DDL_AUTO:-validate}
 
       # Eureka
       EUREKA_DEFAULTZONE: ${EUREKA_DEFAULTZONE:-http://localhost:8761/eureka}
