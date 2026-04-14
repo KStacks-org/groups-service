@@ -29,6 +29,11 @@ public class JwtRequiredFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
+        if (((HttpServletRequest) request).getRequestURI().contains("/actuator/health")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         if (JwtContextHolder.getToken() == null) {
             HttpServletRequest httpRequest = (HttpServletRequest) request;
             HttpServletResponse httpResponse = (HttpServletResponse) response;
@@ -41,8 +46,7 @@ public class JwtRequiredFilter implements Filter {
                     "Unauthorized",
                     "UNAUTHORIZED",
                     "Authentication required. Please provide a valid access token.",
-                    httpRequest.getRequestURI()
-            );
+                    httpRequest.getRequestURI());
 
             objectMapper.writeValue(httpResponse.getWriter(), body);
             return;
