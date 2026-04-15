@@ -75,10 +75,6 @@ public class GroupService {
         List<Group> groups = groupRepository.findByCourseIdAndGenderOrGeneralForBoth(
                 courseId,
                 Gender.valueOf(jwt().extractGender()));
-
-        if (groups.isEmpty()) {
-            throw new ResourceNotFoundException("No groups found");
-        }
         return groups;
     }
 
