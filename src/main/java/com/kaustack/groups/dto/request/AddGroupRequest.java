@@ -1,6 +1,7 @@
 package com.kaustack.groups.dto.request;
 
 import com.kaustack.groups.exception.BusinessRuleViolationException;
+import com.kaustack.groups.model.GroupType;
 
 import jakarta.validation.constraints.*;
 
@@ -30,17 +31,11 @@ public class AddGroupRequest {
     private String groupLink;
 
     @NotNull
-    private Boolean generalGroup;
+    private GroupType groupType;
 
-    @NotNull
-    private Boolean generalGroupMaleAndFemale;
-
-    // Custom setter for groupLink with sanitization
     public void setGroupLink(String groupLink) {
         if (groupLink != null) {
-            // Remove leading/trailing whitespace
             groupLink = groupLink.trim();
-            // Remove query parameters
             int queryIndex = groupLink.indexOf('?');
             if (queryIndex != -1) {
                 groupLink = groupLink.substring(0, queryIndex);
@@ -49,28 +44,16 @@ public class AddGroupRequest {
         this.groupLink = groupLink;
     }
 
-    // Validation method
     public void validate() {
-        // If both checkboxes are false, section is required
-        if (!generalGroup && !generalGroupMaleAndFemale) {
+        if (groupType.requiresSection()) {
             if (section == null || section.isBlank()) {
                 throw new BusinessRuleViolationException(
-                    "Section is required when the group is not general"
+                        "Section is required when the group is not general"
                 );
             }
-        }
-
-        // If generalGroupMaleAndFemale is true, generalGroup should be false
-        if (generalGroupMaleAndFemale && generalGroup) {
+        } else if (section != null) {
             throw new BusinessRuleViolationException(
-                "Cannot have both generalGroup and generalGroupMaleAndFemale set to true"
-            );
-        }
-        
-        // If generalGroup or generalGroupMaleAndFemale is true, section should be null
-        if ((generalGroup || generalGroupMaleAndFemale) && section != null) {
-            throw new BusinessRuleViolationException(
-                "Section is not allowed when the group is general"
+                    "Section is not allowed when the group is general"
             );
         }
     }

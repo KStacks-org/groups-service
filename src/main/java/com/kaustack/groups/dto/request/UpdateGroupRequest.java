@@ -1,5 +1,7 @@
 package com.kaustack.groups.dto.request;
 
+import com.kaustack.groups.model.GroupType;
+
 import jakarta.validation.constraints.*;
 
 import lombok.Getter;
@@ -21,9 +23,7 @@ public class UpdateGroupRequest {
     )
     private String link;
 
-    private Boolean generalGroup;
-
-    private Boolean generalGroupMaleAndFemale;
+    private GroupType groupType;
 
     public void setLink(String link) {
         if (link != null) {
@@ -37,6 +37,6 @@ public class UpdateGroupRequest {
     }
 
     public boolean hasUpdates() {
-        return section != null || link != null || generalGroup != null || generalGroupMaleAndFemale != null;
+        return section != null || link != null || groupType != null;
     }
 }

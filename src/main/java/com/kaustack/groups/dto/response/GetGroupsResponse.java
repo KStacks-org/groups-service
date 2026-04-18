@@ -1,6 +1,7 @@
 package com.kaustack.groups.dto.response;
 
 import com.kaustack.groups.model.Group;
+import com.kaustack.groups.model.GroupType;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,11 +13,10 @@ public record GetGroupsResponse(
             UUID id,
             String section,
             String link,
-            Boolean generalGroup,
-            Boolean generalGroupMaleAndFemale
+            GroupType groupType
     ) {
         public static GroupItem from(Group group) {
-            return new GroupItem(group.getId(), group.getSection(), group.getLink(), group.getGeneralGroup(), group.getGeneralGroupMaleAndFemale());
+            return new GroupItem(group.getId(), group.getSection(), group.getLink(), group.getGroupType());
         }
     }
 

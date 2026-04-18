@@ -37,15 +37,7 @@ public class Group {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Setter
-    private Gender gender;
-
-    @Column(nullable = false)
-    @Setter
-    private Boolean generalGroup;
-
-    @Column(nullable = false)
-    @Setter
-    private Boolean generalGroupMaleAndFemale;
+    private GroupType groupType;
 
     @CreationTimestamp
     @Column(nullable = false)

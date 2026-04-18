@@ -3,8 +3,8 @@ package com.kaustack.groups.service;
 import com.kaustack.groups.dto.request.*;
 import com.kaustack.groups.dto.response.catalog.*;
 import com.kaustack.groups.exception.*;
-import com.kaustack.groups.model.Gender;
 import com.kaustack.groups.model.Group;
+import com.kaustack.groups.model.GroupType;
 import com.kaustack.groups.repository.GroupRepository;
 import com.kaustack.groups.security.JwtContextHolder;
 import com.kaustack.jwt.JwtUtils;
@@ -46,22 +46,17 @@ public class GroupService {
                     "A group with this link already exists");
         }
 
-        Gender groupGender = request.getGeneralGroupMaleAndFemale() ? Gender.UNKNOWN
-                : Gender.valueOf(jwt().extractGender().toUpperCase());
-        boolean isGeneral = request.getGeneralGroup() || request.getGeneralGroupMaleAndFemale();
-        String section = isGeneral ? null : request.getSection();
+        GroupType type = resolveType(request.getGroupType());
+        String section = type.requiresSection() ? request.getSection() : null;
 
-        checkDuplicateGroup(course.getId(), section, groupGender, request.getGeneralGroup(),
-                request.getGeneralGroupMaleAndFemale(), null);
+        checkDuplicateGroup(course.getId(), section, type, null);
 
         Group group = Group.builder()
                 .courseId(course.getId())
                 .userId(jwt().extractUserId())
                 .link(request.getGroupLink())
-                .gender(groupGender)
                 .section(section)
-                .generalGroup(request.getGeneralGroup())
-                .generalGroupMaleAndFemale(request.getGeneralGroupMaleAndFemale())
+                .groupType(type)
                 .build();
 
         return groupRepository.save(group);
@@ -72,9 +67,13 @@ public class GroupService {
         // It will return 404 if the course not found
         fetchCourse(courseId);
 
-        List<Group> groups = groupRepository.findByCourseIdAndGenderOrGeneralForBoth(
-                courseId,
-                Gender.valueOf(jwt().extractGender()));
+        String jwtGender = jwt().extractGender().toUpperCase();
+        List<GroupType> visible = "MALE".equals(jwtGender)
+                ? List.of(GroupType.GENERAL, GroupType.GENERAL_MALE_ONLY, GroupType.SECTION_MALE)
+                : List.of(GroupType.GENERAL, GroupType.GENERAL_FEMALE_ONLY, GroupType.SECTION_FEMALE);
+
+        List<Group> groups = groupRepository.findVisibleForTypes(courseId, visible);
+        
         return groups;
     }
 
@@ -105,35 +104,22 @@ public class GroupService {
             throw new BusinessRuleViolationException("No fields to update");
         }
 
-        Boolean effectiveGeneralGroupMaleAndFemale = request.getGeneralGroupMaleAndFemale() != null
-                ? request.getGeneralGroupMaleAndFemale()
-                : group.getGeneralGroupMaleAndFemale();
-        Boolean effectiveGeneralGroup = request.getGeneralGroup() != null
-                ? request.getGeneralGroup()
-                : group.getGeneralGroup();
-        Gender effectiveGender = effectiveGeneralGroupMaleAndFemale
-                ? Gender.UNKNOWN
-                : Gender.valueOf(jwtUtils.extractGender().toUpperCase());
-        String effectiveSection = (effectiveGeneralGroup || effectiveGeneralGroupMaleAndFemale)
-                ? null
-                : (request.getSection() != null ? request.getSection() : group.getSection());
+        GroupType effectiveType = request.getGroupType() != null
+                ? resolveType(request.getGroupType())
+                : group.getGroupType();
 
-        if (effectiveGeneralGroup && effectiveGeneralGroupMaleAndFemale) {
-            throw new BusinessRuleViolationException(
-                    "Cannot have both generalGroup and generalGroupMaleAndFemale set to true");
-        }
+        String effectiveSection = effectiveType.requiresSection()
+                ? (request.getSection() != null ? request.getSection() : group.getSection())
+                : null;
 
-        if (!effectiveGeneralGroup && !effectiveGeneralGroupMaleAndFemale
-                && (effectiveSection == null || effectiveSection.isBlank())) {
+        if (effectiveType.requiresSection() && (effectiveSection == null || effectiveSection.isBlank())) {
             throw new BusinessRuleViolationException(
                     "Section is required when the group is not general");
         }
 
         boolean linkChanged = request.getLink() != null && !request.getLink().equals(group.getLink());
-        boolean attributesChanged = !effectiveGeneralGroup.equals(group.getGeneralGroup()) ||
-                !effectiveGeneralGroupMaleAndFemale.equals(group.getGeneralGroupMaleAndFemale()) ||
-                effectiveGender != group.getGender() ||
-                (effectiveSection != null ? !effectiveSection.equals(group.getSection()) : group.getSection() != null);
+        boolean attributesChanged = effectiveType != group.getGroupType()
+                || (effectiveSection != null ? !effectiveSection.equals(group.getSection()) : group.getSection() != null);
 
         if (!linkChanged && !attributesChanged) {
             return group;
@@ -147,12 +133,9 @@ public class GroupService {
         }
 
         if (attributesChanged) {
-            checkDuplicateGroup(group.getCourseId(), effectiveSection, effectiveGender,
-                    effectiveGeneralGroup, effectiveGeneralGroupMaleAndFemale, group.getId());
+            checkDuplicateGroup(group.getCourseId(), effectiveSection, effectiveType, group.getId());
 
-            group.setGeneralGroupMaleAndFemale(effectiveGeneralGroupMaleAndFemale);
-            group.setGeneralGroup(effectiveGeneralGroup);
-            group.setGender(effectiveGender);
+            group.setGroupType(effectiveType);
             group.setSection(effectiveSection);
         }
 
@@ -172,22 +155,39 @@ public class GroupService {
         }
     }
 
-    private void checkDuplicateGroup(UUID courseId, String section, Gender gender, Boolean generalGroup,
-            Boolean generalGroupMaleAndFemale, UUID excludeId) {
-        if (generalGroupMaleAndFemale) {
-            if (groupRepository.existsDuplicateGeneralForBoth(courseId, excludeId)) {
-                throw new BusinessRuleViolationException(
-                        "A general group for both genders already exists for this course");
-            }
-        } else if (generalGroup) {
-            if (groupRepository.existsDuplicateGeneralPerGender(courseId, gender, excludeId)) {
-                throw new BusinessRuleViolationException(
-                        "A general group for your gender already exists for this course");
-            }
-        } else if (section != null) {
-            if (groupRepository.existsDuplicateSection(courseId, section, gender, excludeId)) {
-                throw new BusinessRuleViolationException("A group for this section already exists");
-            }
+    private GroupType resolveType(GroupType requested) {
+        String jwtGender = jwt().extractGender().toUpperCase();
+        boolean jwtMale = "MALE".equals(jwtGender);
+
+        if (requested.isMale() && !jwtMale) {
+            throw new BusinessRuleViolationException(
+                    "You can only create MALE groups as a male user");
         }
+        if (requested.isFemale() && jwtMale) {
+            throw new BusinessRuleViolationException(
+                    "You can only create FEMALE groups as a female user");
+        }
+        return requested;
+    }
+
+    private void checkDuplicateGroup(UUID courseId, String section, GroupType type, UUID excludeId) {
+        String sectionFilter = type.requiresSection() ? section : null;
+
+        groupRepository
+                .findConflicting(courseId, sectionFilter, type.conflictsWith(), excludeId)
+                .ifPresent(existing -> {
+                    throw new BusinessRuleViolationException(conflictMessage(type, existing));
+                });
+    }
+
+    private static String conflictMessage(GroupType requested, Group existing) {
+        GroupType found = existing.getGroupType();
+        if (requested.requiresSection() && found == requested) {
+            return "A group for section '" + existing.getSection() + "' already exists";
+        }
+        if (requested == found) {
+            return "A " + requested + " group already exists for this course";
+        }
+        return "A " + found + " group already exists for this course and conflicts with " + requested;
     }
 }
