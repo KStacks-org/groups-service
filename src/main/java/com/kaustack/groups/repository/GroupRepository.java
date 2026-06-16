@@ -18,16 +18,20 @@ public interface GroupRepository extends JpaRepository<Group, UUID> {
 
     boolean existsByLink(String link);
 
+    boolean existsByCrn(Integer crn);
+
     @Query("""
             SELECT g FROM Group g
             WHERE g.courseId = :courseId
               AND g.groupType IN :types
               AND (:section IS NULL OR g.section = :section)
+              AND (:crn IS NULL OR g.crn = :crn)
               AND (:excludeId IS NULL OR g.id <> :excludeId)
             """)
     Optional<Group> findConflicting(
             @Param("courseId") UUID courseId,
             @Param("section") String section,
+            @Param("crn") Integer crn,
             @Param("types") Collection<GroupType> types,
             @Param("excludeId") UUID excludeId);
 

@@ -30,6 +30,10 @@ public class AddGroupRequest {
     )
     private String groupLink;
 
+    @Min(10000)
+    @Max(99999)
+    private Integer crn;
+
     @NotNull
     private GroupType groupType;
 
@@ -54,6 +58,18 @@ public class AddGroupRequest {
         } else if (section != null) {
             throw new BusinessRuleViolationException(
                     "Section is not allowed when the group is general"
+            );
+        }
+
+        if (!groupType.isBothGenders()) {
+            if (crn == null) {
+                throw new BusinessRuleViolationException(
+                        "CRN is required for gender-specific groups"
+                );
+            }
+        } else if (crn != null) {
+            throw new BusinessRuleViolationException(
+                    "CRN is not allowed for general (non-gender-specific) groups"
             );
         }
     }

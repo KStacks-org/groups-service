@@ -13,10 +13,11 @@ public record GetGroupsResponse(
             UUID id,
             String section,
             String link,
+            Integer crn,
             GroupType groupType
     ) {
         public static GroupItem from(Group group) {
-            return new GroupItem(group.getId(), group.getSection(), group.getLink(), group.getGroupType());
+            return new GroupItem(group.getId(), group.getSection(), group.getLink(), group.getCrn(), group.getGroupType());
         }
     }
 

@@ -23,6 +23,10 @@ public class UpdateGroupRequest {
     )
     private String link;
 
+    @Min(10000)
+    @Max(99999)
+    private Integer crn;
+
     private GroupType groupType;
 
     public void setLink(String link) {
@@ -37,6 +41,6 @@ public class UpdateGroupRequest {
     }
 
     public boolean hasUpdates() {
-        return section != null || link != null || groupType != null;
+        return section != null || link != null || groupType != null || crn != null;
     }
 }

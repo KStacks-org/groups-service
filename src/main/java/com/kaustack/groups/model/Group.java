@@ -27,10 +27,11 @@ public class Group {
     @Column(nullable = false, updatable = false)
     private UUID userId;
 
+    @Column(updatable = true)
     @Setter
     private String section;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, updatable = true)
     @Setter
     private String link;
 
@@ -38,6 +39,10 @@ public class Group {
     @Column(nullable = false)
     @Setter
     private GroupType groupType;
+
+    @Column(unique = true, updatable = true)
+    @Setter
+    private Integer crn;
 
     @CreationTimestamp
     @Column(nullable = false)

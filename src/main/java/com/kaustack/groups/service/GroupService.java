@@ -46,15 +46,21 @@ public class GroupService {
                     "A group with this link already exists");
         }
 
+        if (request.getCrn() != null && groupRepository.existsByCrn(request.getCrn())) {
+            throw new BusinessRuleViolationException(
+                    "A group with this CRN already exists");
+        }
+
         GroupType type = resolveType(request.getGroupType());
         String section = type.requiresSection() ? request.getSection() : null;
 
-        checkDuplicateGroup(course.getId(), section, type, null);
+        checkDuplicateGroup(course.getId(), section, request.getCrn(), type, null);
 
         Group group = Group.builder()
                 .courseId(course.getId())
                 .userId(jwt().extractUserId())
                 .link(request.getGroupLink())
+                .crn(type.isBothGenders() ? null : request.getCrn())
                 .section(section)
                 .groupType(type)
                 .build();
@@ -118,10 +124,11 @@ public class GroupService {
         }
 
         boolean linkChanged = request.getLink() != null && !request.getLink().equals(group.getLink());
+        boolean crnChanged = request.getCrn() != null && !request.getCrn().equals(group.getCrn());
         boolean attributesChanged = effectiveType != group.getGroupType()
                 || (effectiveSection != null ? !effectiveSection.equals(group.getSection()) : group.getSection() != null);
 
-        if (!linkChanged && !attributesChanged) {
+        if (!linkChanged && !crnChanged && !attributesChanged) {
             return group;
         }
 
@@ -132,8 +139,20 @@ public class GroupService {
             group.setLink(request.getLink());
         }
 
+        if (crnChanged) {
+            if (!effectiveType.isBothGenders()) {
+                if (groupRepository.existsByCrn(request.getCrn())) {
+                    throw new BusinessRuleViolationException("A group with this CRN already exists");
+                }
+                group.setCrn(request.getCrn());
+            } else {
+                throw new BusinessRuleViolationException(
+                        "CRN is not allowed for general (non-gender-specific) groups");
+            }
+        }
+
         if (attributesChanged) {
-            checkDuplicateGroup(group.getCourseId(), effectiveSection, effectiveType, group.getId());
+            checkDuplicateGroup(group.getCourseId(), effectiveSection, request.getCrn(), effectiveType, group.getId());
 
             group.setGroupType(effectiveType);
             group.setSection(effectiveSection);
@@ -170,11 +189,12 @@ public class GroupService {
         return requested;
     }
 
-    private void checkDuplicateGroup(UUID courseId, String section, GroupType type, UUID excludeId) {
+    private void checkDuplicateGroup(UUID courseId, String section, Integer crn, GroupType type, UUID excludeId) {
         String sectionFilter = type.requiresSection() ? section : null;
+        Integer crnFilter = type.requiresSection() ? crn : null;
 
         groupRepository
-                .findConflicting(courseId, sectionFilter, type.conflictsWith(), excludeId)
+                .findConflicting(courseId, sectionFilter, crnFilter, type.conflictsWith(), excludeId)
                 .ifPresent(existing -> {
                     throw new BusinessRuleViolationException(conflictMessage(type, existing));
                 });
