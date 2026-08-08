@@ -7,28 +7,35 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.UUID;
+
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @Component
-public class JwtExtractionFilter implements Filter {
-    
+public class HeaderAuthExtractionFilter implements Filter {
+
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        
+
         HttpServletRequest req = (HttpServletRequest) request;
-        
+
         try {
-            String authHeader = req.getHeader("Authorization");
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                JwtContextHolder.setToken(token);
+            String rawId = req.getHeader("X-User-Id");
+            if (rawId != null) {
+                AuthContext ctx = new AuthContext(
+                        UUID.fromString(rawId),
+                        req.getHeader("X-User-Name"),
+                        req.getHeader("X-User-Email"),
+                        req.getHeader("X-User-Gender")
+                );
+                AuthContextHolder.set(ctx);
             }
-            
+
             chain.doFilter(request, response);
-            
+
         } finally {
             // Critical: prevent memory leaks in thread pools
-            JwtContextHolder.clear();
+            AuthContextHolder.clear();
         }
     }
 }

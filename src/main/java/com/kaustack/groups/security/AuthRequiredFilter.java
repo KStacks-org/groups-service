@@ -20,8 +20,8 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
-@Order(Ordered.HIGHEST_PRECEDENCE + 101) // Run after JwtExtractionFilter
-public class JwtRequiredFilter implements Filter {
+@Order(Ordered.HIGHEST_PRECEDENCE + 101) // Run after HeaderAuthExtractionFilter
+public class AuthRequiredFilter implements Filter {
 
     private final ObjectMapper objectMapper;
 
@@ -34,7 +34,7 @@ public class JwtRequiredFilter implements Filter {
             return;
         }
 
-        if (JwtContextHolder.getToken() == null) {
+        if (AuthContextHolder.get() == null) {
             HttpServletRequest httpRequest = (HttpServletRequest) request;
             HttpServletResponse httpResponse = (HttpServletResponse) response;
 
@@ -45,7 +45,7 @@ public class JwtRequiredFilter implements Filter {
                     HttpStatus.UNAUTHORIZED.value(),
                     "Unauthorized",
                     "UNAUTHORIZED",
-                    "Authentication required. Please provide a valid access token.",
+                    "Authentication required. Missing required authentication headers.",
                     httpRequest.getRequestURI());
 
             objectMapper.writeValue(httpResponse.getWriter(), body);

@@ -6,8 +6,8 @@ import com.kaustack.groups.exception.*;
 import com.kaustack.groups.model.Group;
 import com.kaustack.groups.model.GroupType;
 import com.kaustack.groups.repository.GroupRepository;
-import com.kaustack.groups.security.JwtContextHolder;
-import com.kaustack.jwt.JwtUtils;
+import com.kaustack.groups.security.AuthContext;
+import com.kaustack.groups.security.AuthContextHolder;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -28,9 +28,8 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final RestTemplate restTemplate;
 
-    // Spring Boot services are singleton so we need to do this workaround
-    private JwtUtils jwt() {
-        return new JwtUtils(JwtContextHolder.getToken());
+    private AuthContext auth() {
+        return AuthContextHolder.get();
     }
 
     @Value("${catalog.service.url}")
@@ -58,7 +57,7 @@ public class GroupService {
 
         Group group = Group.builder()
                 .courseId(course.getId())
-                .userId(jwt().extractUserId())
+                .userId(auth().userId())
                 .link(request.getGroupLink())
                 .crn(type.isBothGenders() ? null : request.getCrn())
                 .section(section)
@@ -73,8 +72,8 @@ public class GroupService {
         // It will return 404 if the course not found
         fetchCourse(courseId);
 
-        String jwtGender = jwt().extractGender().toUpperCase();
-        List<GroupType> visible = "MALE".equals(jwtGender)
+        String gender = auth().userGender().toUpperCase();
+        List<GroupType> visible = "MALE".equals(gender)
                 ? List.of(GroupType.GENERAL, GroupType.GENERAL_MALE_ONLY, GroupType.SECTION_MALE)
                 : List.of(GroupType.GENERAL, GroupType.GENERAL_FEMALE_ONLY, GroupType.SECTION_FEMALE);
 
@@ -87,7 +86,7 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found: " + groupId));
 
-        if (!group.getUserId().equals(jwt().extractUserId())) {
+        if (!group.getUserId().equals(auth().userId())) {
             throw new UnauthorizedException("You are not allowed to delete this group");
         }
 
@@ -99,9 +98,7 @@ public class GroupService {
         Group group = groupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found: " + id));
 
-        JwtUtils jwtUtils = jwt();
-
-        if (!group.getUserId().equals(jwtUtils.extractUserId())) {
+        if (!group.getUserId().equals(auth().userId())) {
             throw new UnauthorizedException(
                     "You are not authorized to update this group. Only the group creator can update it.");
         }
@@ -175,8 +172,8 @@ public class GroupService {
     }
 
     private GroupType resolveType(GroupType requested) {
-        String jwtGender = jwt().extractGender().toUpperCase();
-        boolean jwtMale = "MALE".equals(jwtGender);
+        String gender = auth().userGender().toUpperCase();
+        boolean jwtMale = "MALE".equals(gender);
 
         if (requested.isMale() && !jwtMale) {
             throw new BusinessRuleViolationException(
