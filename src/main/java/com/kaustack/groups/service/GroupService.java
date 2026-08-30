@@ -13,12 +13,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -38,28 +38,47 @@ public class GroupService {
     public Group addGroup(AddGroupRequest request) {
         request.validate();
 
-        CourseData course = fetchCourse(request.getCourseId());
-
         if (groupRepository.existsByLink(request.getGroupLink())) {
             throw new BusinessRuleViolationException(
                     "A group with this link already exists");
         }
 
-        if (request.getCrn() != null && groupRepository.existsByCrn(request.getCrn())) {
+        UUID courseId;
+        UUID sectionId;
+        String section;
+        Integer crn;
+        GroupType type;
+
+        if (request.getSectionId() != null) {
+            CatalogSectionData sec = fetchSection(request.getCourseId(), request.getSectionId());
+            courseId = request.getCourseId();
+            sectionId = sec.getId();
+            section = sec.getSectionCode();
+            crn = sec.getCrn();
+            type = sectionType(sec);
+            assertGenderAllowed(type);
+        } else {
+            CourseData course = fetchCourse(request.getCourseId());
+            courseId = course.getId();
+            sectionId = null;
+            section = null;
+            crn = null;
+            type = resolveType(request.getGroupType());
+        }
+
+        if (crn != null && groupRepository.existsByCrn(crn)) {
             throw new BusinessRuleViolationException(
                     "A group with this CRN already exists");
         }
 
-        GroupType type = resolveType(request.getGroupType());
-        String section = type.requiresSection() ? request.getSection() : null;
-
-        checkDuplicateGroup(course.getId(), section, request.getCrn(), type, null);
+        checkDuplicateGroup(courseId, section, crn, type, null);
 
         Group group = Group.builder()
-                .courseId(course.getId())
+                .courseId(courseId)
                 .userId(auth().userId())
                 .link(request.getGroupLink())
-                .crn(type.isBothGenders() ? null : request.getCrn())
+                .crn(crn)
+                .sectionId(sectionId)
                 .section(section)
                 .groupType(type)
                 .build();
@@ -78,7 +97,7 @@ public class GroupService {
                 : List.of(GroupType.GENERAL, GroupType.GENERAL_FEMALE_ONLY, GroupType.SECTION_FEMALE);
 
         List<Group> groups = groupRepository.findVisibleForTypes(courseId, visible);
-        
+
         return groups;
     }
 
@@ -93,7 +112,6 @@ public class GroupService {
         groupRepository.delete(group);
     }
 
-    @Transactional
     public Group updateGroup(UUID id, UpdateGroupRequest request) {
         Group group = groupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found: " + id));
@@ -107,25 +125,41 @@ public class GroupService {
             throw new BusinessRuleViolationException("No fields to update");
         }
 
-        GroupType effectiveType = request.getGroupType() != null
-                ? resolveType(request.getGroupType())
-                : group.getGroupType();
-
-        String effectiveSection = effectiveType.requiresSection()
-                ? (request.getSection() != null ? request.getSection() : group.getSection())
-                : null;
-
-        if (effectiveType.requiresSection() && (effectiveSection == null || effectiveSection.isBlank())) {
+        if (request.getSectionId() != null && request.getGroupType() != null) {
             throw new BusinessRuleViolationException(
-                    "Section is required when the group is not general");
+                    "groupType is derived from the section; omit it when sectionId is provided");
+        }
+
+        GroupType effectiveType = group.getGroupType();
+        UUID effectiveSectionId = group.getSectionId();
+        String effectiveSection = group.getSection();
+        Integer effectiveCrn = group.getCrn();
+
+        if (request.getSectionId() != null) {
+            CatalogSectionData sec = fetchSection(group.getCourseId(), request.getSectionId());
+            effectiveType = sectionType(sec);
+            assertGenderAllowed(effectiveType);
+            effectiveSectionId = sec.getId();
+            effectiveSection = sec.getSectionCode();
+            effectiveCrn = sec.getCrn();
+        } else if (request.getGroupType() != null) {
+            if (request.getGroupType().requiresSection()) {
+                throw new BusinessRuleViolationException(
+                        "sectionId is required for section groups");
+            }
+            effectiveType = resolveType(request.getGroupType());
+            effectiveSectionId = null;
+            effectiveSection = null;
+            effectiveCrn = null;
         }
 
         boolean linkChanged = request.getLink() != null && !request.getLink().equals(group.getLink());
-        boolean crnChanged = request.getCrn() != null && !request.getCrn().equals(group.getCrn());
-        boolean attributesChanged = effectiveType != group.getGroupType()
-                || (effectiveSection != null ? !effectiveSection.equals(group.getSection()) : group.getSection() != null);
+        boolean typeChanged = effectiveType != group.getGroupType();
+        boolean sectionChanged = !Objects.equals(effectiveSection, group.getSection())
+                || !Objects.equals(effectiveSectionId, group.getSectionId());
+        boolean crnChanged = !Objects.equals(effectiveCrn, group.getCrn());
 
-        if (!linkChanged && !crnChanged && !attributesChanged) {
+        if (!linkChanged && !typeChanged && !sectionChanged && !crnChanged) {
             return group;
         }
 
@@ -136,23 +170,17 @@ public class GroupService {
             group.setLink(request.getLink());
         }
 
-        if (crnChanged) {
-            if (!effectiveType.isBothGenders()) {
-                if (groupRepository.existsByCrn(request.getCrn())) {
-                    throw new BusinessRuleViolationException("A group with this CRN already exists");
-                }
-                group.setCrn(request.getCrn());
-            } else {
-                throw new BusinessRuleViolationException(
-                        "CRN is not allowed for general (non-gender-specific) groups");
-            }
+        if (crnChanged && effectiveCrn != null && groupRepository.existsByCrn(effectiveCrn)) {
+            throw new BusinessRuleViolationException("A group with this CRN already exists");
         }
 
-        if (attributesChanged) {
-            checkDuplicateGroup(group.getCourseId(), effectiveSection, request.getCrn(), effectiveType, group.getId());
+        if (typeChanged || sectionChanged || crnChanged) {
+            checkDuplicateGroup(group.getCourseId(), effectiveSection, effectiveCrn, effectiveType, group.getId());
 
             group.setGroupType(effectiveType);
+            group.setSectionId(effectiveSectionId);
             group.setSection(effectiveSection);
+            group.setCrn(effectiveCrn);
         }
 
         return groupRepository.save(group);
@@ -171,19 +199,61 @@ public class GroupService {
         }
     }
 
-    private GroupType resolveType(GroupType requested) {
-        String gender = auth().userGender().toUpperCase();
-        boolean jwtMale = "MALE".equals(gender);
+    private CatalogSectionData fetchSection(UUID courseId, UUID sectionId) {
+        try {
+            CatalogSectionsResponse response = restTemplate.getForObject(
+                    catalogServiceUrl + "/courses/{courseId}/sections",
+                    CatalogSectionsResponse.class,
+                    courseId);
+            List<CatalogSectionData> sections = response != null ? response.getData() : null;
+            if (sections == null) {
+                throw new ResourceNotFoundException("Section not found: " + sectionId);
+            }
+            return sections.stream()
+                    .filter(s -> sectionId.equals(s.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("Section not found: " + sectionId));
+        } catch (HttpClientErrorException.NotFound e) {
+            log.error("Fetch Section error: ", e);
+            throw new ResourceNotFoundException("Course not found: " + courseId);
+        }
+    }
 
-        if (requested.isMale() && !jwtMale) {
+    private GroupType sectionType(CatalogSectionData sec) {
+        return "MALE".equals(sectionGender(sec.getBranch()))
+                ? GroupType.SECTION_MALE
+                : GroupType.SECTION_FEMALE;
+    }
+
+    private String sectionGender(String branch) {
+        if (branch != null) {
+            if (branch.contains("طالبات")) {
+                return "FEMALE";
+            }
+            if (branch.contains("طلاب")) {
+                return "MALE";
+            }
+        }
+        throw new BusinessRuleViolationException(
+                "Unable to determine section gender from catalog");
+    }
+
+    private GroupType resolveType(GroupType requested) {
+        assertGenderAllowed(requested);
+        return requested;
+    }
+
+    private void assertGenderAllowed(GroupType type) {
+        boolean userMale = "MALE".equals(auth().userGender().toUpperCase());
+
+        if (type.isMale() && !userMale) {
             throw new BusinessRuleViolationException(
                     "You can only create MALE groups as a male user");
         }
-        if (requested.isFemale() && jwtMale) {
+        if (type.isFemale() && userMale) {
             throw new BusinessRuleViolationException(
                     "You can only create FEMALE groups as a female user");
         }
-        return requested;
     }
 
     private void checkDuplicateGroup(UUID courseId, String section, Integer crn, GroupType type, UUID excludeId) {

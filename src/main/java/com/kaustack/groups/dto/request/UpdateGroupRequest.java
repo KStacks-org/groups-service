@@ -9,11 +9,12 @@ import lombok.Setter;
 
 import org.hibernate.validator.constraints.URL;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 public class UpdateGroupRequest {
-    @Size(min = 1, max = 3)
-    private String section;
+    private UUID sectionId;
 
     @Size(min = 48, max = 48)
     @URL
@@ -22,10 +23,6 @@ public class UpdateGroupRequest {
             message = "Invalid group link"
     )
     private String link;
-
-    @Min(10000)
-    @Max(99999)
-    private Integer crn;
 
     private GroupType groupType;
 
@@ -41,6 +38,6 @@ public class UpdateGroupRequest {
     }
 
     public boolean hasUpdates() {
-        return section != null || link != null || groupType != null || crn != null;
+        return sectionId != null || link != null || groupType != null;
     }
 }

@@ -29,6 +29,10 @@ public class Group {
 
     @Column(updatable = true)
     @Setter
+    private UUID sectionId;
+
+    @Column(updatable = true)
+    @Setter
     private String section;
 
     @Column(nullable = false, unique = true, updatable = true)

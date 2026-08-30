@@ -18,8 +18,7 @@ public class AddGroupRequest {
     @NotNull
     private UUID courseId;
 
-    @Size(min = 1, max = 3)
-    private String section;
+    private UUID sectionId;
 
     @NotBlank
     @Size(min = 48, max = 48)
@@ -30,11 +29,6 @@ public class AddGroupRequest {
     )
     private String groupLink;
 
-    @Min(10000)
-    @Max(99999)
-    private Integer crn;
-
-    @NotNull
     private GroupType groupType;
 
     public void setGroupLink(String groupLink) {
@@ -49,27 +43,24 @@ public class AddGroupRequest {
     }
 
     public void validate() {
-        if (groupType.requiresSection()) {
-            if (section == null || section.isBlank()) {
+        if (sectionId != null) {
+            if (groupType != null) {
                 throw new BusinessRuleViolationException(
-                        "Section is required when the group is not general"
+                        "groupType is derived from the section; omit it when sectionId is provided"
                 );
             }
-        } else if (section != null) {
+            return;
+        }
+
+        if (groupType == null) {
             throw new BusinessRuleViolationException(
-                    "Section is not allowed when the group is general"
+                    "groupType is required for general groups"
             );
         }
 
-        if (!groupType.isBothGenders()) {
-            if (crn == null) {
-                throw new BusinessRuleViolationException(
-                        "CRN is required for gender-specific groups"
-                );
-            }
-        } else if (crn != null) {
+        if (groupType.requiresSection()) {
             throw new BusinessRuleViolationException(
-                    "CRN is not allowed for general (non-gender-specific) groups"
+                    "sectionId is required for section groups"
             );
         }
     }
