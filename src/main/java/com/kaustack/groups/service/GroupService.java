@@ -9,6 +9,7 @@ import com.kaustack.groups.repository.GroupRepository;
 import com.kaustack.groups.security.AuthContext;
 import com.kaustack.groups.security.AuthContextHolder;
 
+import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@RegisterReflectionForBinding({CatalogCourseResponse.class, CatalogSectionsResponse.class})
 public class GroupService {
     private final GroupRepository groupRepository;
     private final RestTemplate restTemplate;
