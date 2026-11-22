@@ -21,8 +21,6 @@ jobs:
       contents: read
       packages: write
     uses: KStacks-org/infra/.github/workflows/java.yml@ee06961c76b5f7735de3a4538e627221b9b58d53
-    with:
-      dockerfile: Dockerfile.ci
 
   deploy:
     needs: build
